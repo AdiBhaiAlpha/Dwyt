@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Downloader</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        input, button { margin: 5px; padding: 10px; }
+        #results { margin-top: 20px; }
+        .result-item { margin-bottom: 15px; }
+        .result-item img { max-width: 120px; }
+        .result-item button { margin-right: 5px; }
+    </style>
+</head>
+<body>
+    <h1>YouTube Downloader</h1>
+    <input type="text" id="query" placeholder="Enter video name or link">
+    <button onclick="searchVideo()">Search</button>
+    <div id="results"></div>
+
+    <script>
+        async function searchVideo() {
+            const query = document.getElementById('query').value;
+            if (!query) return alert('Please enter a search query.');
+
+            try {
+                const response = await fetch(`/search?query=${encodeURIComponent(query)}`);
+                const searchResults = await response.json();
+
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = '';
+                searchResults.forEach((result, index) => {
+                    resultsDiv.innerHTML += `
+                        <div class="result-item">
+                            <img src="${result.thumbnail}" alt="${result.title}">
+                            <p>${index + 1}. ${result.title} - ${result.channel}</p>
+                            <button onclick="downloadVideo('${result.id}')">Download Video</button>
+                            <button onclick="downloadAudio('${result.id}')">Download Audio</button>
+                            <button onclick="viewInfo('${result.id}')">View Info</button>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error fetching search results:', error);
+            }
+        }
+
+        async function downloadVideo(videoId) {
+            const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+            try {
+                const response = await fetch(`/video?url=${encodeURIComponent(videoUrl)}`);
+                const videoInfo = await response.json();
+                const downloadResponse = await fetch('/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'video', videoInfo })
+                });
+                const blob = await downloadResponse.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${videoId}.mp4`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } catch (error) {
+                console.error('Error downloading video:', error);
+            }
+        }
+
+        async function downloadAudio(videoId) {
+            const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+            try {
+                const response = await fetch(`/video?url=${encodeURIComponent(videoUrl)}`);
+                const videoInfo = await response.json();
+                const downloadResponse = await fetch('/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'audio', videoInfo })
+                });
+                const blob = await downloadResponse.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${videoId}.mp3`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } catch (error) {
+                console.error('Error downloading audio:', error);
+            }
+        }
+
+        async function viewInfo(videoId) {
+            const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+            try {
+                const response = await fetch(`/video?url=${encodeURIComponent(videoUrl)}`);
+                const videoInfo = await response.json();
+                const minutes = Math.floor(videoInfo.duration / 60);
+                const seconds = videoInfo.duration % 60;
+                const time = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                alert(`Title: ${videoInfo.title}\nChannel: ${videoInfo.author}\nDuration: ${time}`);
+            } catch (error) {
+                console.error('Error viewing video info:', error);
+            }
+        }
+    </script>
+</body>
+</html>
